@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+
+{% block title %}Analyze Data{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        Data Analysis Dashboard
+    </div>
+    <div class="card-body">
+        <div class="tabs">
+            <div class="tab-buttons" style="margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 10px;">
+                <button class="tab-btn active" data-tab="overview">Overview</button>
+                <button class="tab-btn" data-tab="numerical">Numerical Analysis</button>
+                <button class="tab-btn" data-tab="categorical">Categorical Analysis</button>
+                <button class="tab-btn" data-tab="correlations">Correlations</button>
+            </div>
+            
+            <!-- Overview Tab -->
+            <div id="overview" class="tab-content active">
+                <h3>Dataset Overview</h3>
+                <div class="overview-stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;">
+                    <div class="stat-card" style="background: #f8f9fa; padding: 15px; border-radius: 5px; text-align: center;">
+                        <h4>Total Rows</h4>
+                        <p style="font-size: 24px; font-weight: bold; margin: 5px 0;">{{ num_rows }}</p>
+                    </div>
+                    <div class="stat-card" style="background: #f8f9fa; padding: 15px; border-radius: 5px; text-align: center;">
+                        <h4>Total Columns</h4>
+                        <p style="font-size: 24px; font-weight: bold; margin: 5px 0;">{{ num_cols }}</p>
+                    </div>
+                    <div class="stat-card" style="background: #f8f9fa; padding: 15px; border-radius: 5px; text-align: center;">
+                        <h4>Missing Values</h4>
+                        <p style="font-size: 24px; font-weight: bold; margin: 5px 0;">{{ missing_values }}%</p>
+                    </div>
+                    <div class="stat-card" style="background: #f8f9fa; padding: 15px; border-radius: 5px; text-align: center;">
+                        <h4>Churn Rate</h4>
+                        <p style="font-size: 24px; font-weight: bold; margin: 5px 0;">{{ churn_rate }}%</p>
+                    </div>
+                </div>
+                
+                <div class="data-types" style="margin: 30px 0;">
+                    <h4>Data Types</h4>
+                    <div style="overflow-x: auto; margin-top: 10px;">
+                        {{ data_types|safe }}
+                    </div>
+                </div>
+                
+                <div class="quick-insights" style="background: #e8f4fd; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                    <h4>Quick Insights</h4>
+                    <ul style="margin: 10px 0 0 20px;">
+                        {% for insight in insights %}
+                            <li>{{ insight }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Numerical Analysis Tab -->
+            <div id="numerical" class="tab-content">
+                <h3>Numerical Features Analysis</h3>
+                <div class="form-group" style="margin: 15px 0;">
+                    <label for="num-feature-select">Select Feature:</label>
+                    <select id="num-feature-select" class="form-control" style="width: 300px;">
+                        {% for col in numerical_cols %}
+                            <option value="{{ col }}">{{ col }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="chart-container" id="numerical-chart">
+                    <!-- Plotly chart will be rendered here -->
+                </div>
+                
+                <div class="numerical-stats" id="numerical-stats" style="margin-top: 20px;">
+                    <!-- Statistics will be loaded here -->
+                </div>
+            </div>
+            
+            <!-- Categorical Analysis Tab -->
+            <div id="categorical" class="tab-content">
+                <h3>Categorical Features Analysis</h3>
+                <div class="form-group" style="margin: 15px 0;">
+                    <label for="cat-feature-select">Select Feature:</label>
+                    <select id="cat-feature-select" class="form-control" style="width: 300px;">
+                        {% for col in categorical_cols %}
+                            <option value="{{ col }}">{{ col }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="chart-container" id="categorical-chart">
+                    <!-- Plotly chart will be rendered here -->
+                </div>
+                
+                <div class="categorical-stats" id="categorical-stats" style="margin-top: 20px;">
+                    <!-- Statistics will be loaded here -->
+                </div>
+            </div>
+            
+            <!-- Correlations Tab -->
+            <div id="correlations" class="tab-content">
+                <h3>Feature Correlations</h3>
+                <p>Explore how different features correlate with each other and with the target variable.</p>
+                
+                <div class="chart-container" id="correlation-heatmap">
+                    <!-- Correlation heatmap will be rendered here -->
+                </div>
+                
+                <div class="top-correlations" style="margin-top: 30px;">
+                    <h4>Top Correlations with Target</h4>
+                    <div id="top-correlations">
+                        <!-- Top correlations will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="action-buttons" style="margin-top: 30px; text-align: center;">
+            <a href="{{ url_for('train_model') }}" class="btn btn-success">Train Model</a>
+            <a href="{{ url_for('predict') }}" class="btn btn-primary">Make Predictions</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Tab functionality
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            // Remove active class from all buttons and contents
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            tabContents.forEach(content => content.classList.remove('active'));
+            
+            // Add active class to clicked button and corresponding content
+            button.classList.add('active');
+            const tabId = button.getAttribute('data-tab');
+            document.getElementById(tabId).classList.add('active');
+            
+            // Load charts when tabs are clicked
+            if (tabId === 'numerical') {
+                loadNumericalChart();
+            } else if (tabId === 'categorical') {
+                loadCategoricalChart();
+            } else if (tabId === 'correlations') {
+                loadCorrelationHeatmap();
+            }
+        });
+    });
+    
+    // Load initial chart for the active tab
+    const activeTab = document.querySelector('.tab-content.active').id;
+    if (activeTab === 'numerical') {
+        loadNumericalChart();
+    } else if (activeTab === 'categorical') {
+        loadCategoricalChart();
+    } else if (activeTab === 'correlations') {
+        loadCorrelationHeatmap();
+    }
+    
+    // Event listeners for feature selection
+    document.getElementById('num-feature-select')?.addEventListener('change', loadNumericalChart);
+    document.getElementById('cat-feature-select')?.addEventListener('change', loadCategoricalChart);
+    
+    // Function to load numerical feature chart
+    function loadNumericalChart() {
+        const feature = document.getElementById('num-feature-select').value;
+        fetch(`/api/analyze/numerical/${feature}`)
+            .then(response => response.json())
+            .then(data => {
+                // Update chart
+                Plotly.newPlot('numerical-chart', data.chart.data, data.chart.layout);
+                
+                // Update statistics
+                const statsDiv = document.getElementById('numerical-stats');
+                statsDiv.innerHTML = `
+                    <h4>Statistics for ${feature}</h4>
+                    <table class="table">
+                        <tr><th>Mean:</th><td>${data.stats.mean.toFixed(2)}</td></tr>
+                        <tr><th>Median:</th><td>${data.stats.median.toFixed(2)}</td></tr>
+                        <tr><th>Std Dev:</th><td>${data.stats.std.toFixed(2)}</td></tr>
+                        <tr><th>Min:</th><td>${data.stats.min.toFixed(2)}</td></tr>
+                        <tr><th>Max:</th><td>${data.stats.max.toFixed(2)}</td></tr>
+                        <tr><th>Skewness:</th><td>${data.stats.skew.toFixed(2)}</td></tr>
+                    </table>
+                `;
+            });
+    }
+    
+    // Function to load categorical feature chart
+    function loadCategoricalChart() {
+        const feature = document.getElementById('cat-feature-select').value;
+        fetch(`/api/analyze/categorical/${feature}`)
+            .then(response => response.json())
+            .then(data => {
+                // Update chart
+                Plotly.newPlot('categorical-chart', data.chart.data, data.chart.layout);
+                
+                // Update statistics
+                const statsDiv = document.getElementById('categorical-stats');
+                statsDiv.innerHTML = `
+                    <h4>Value Counts for ${feature}</h4>
+                    <div style="overflow-x: auto;">
+                        ${data.stats}
+                    </div>
+                `;
+            });
+    }
+    
+    // Function to load correlation heatmap
+    function loadCorrelationHeatmap() {
+        fetch('/api/analyze/correlations')
+            .then(response => response.json())
+            .then(data => {
+                // Update heatmap
+                Plotly.newPlot('correlation-heatmap', data.heatmap.data, data.heatmap.layout);
+                
+                // Update top correlations
+                const topCorrDiv = document.getElementById('top-correlations');
+                let html = '<table class="table"><tr><th>Feature</th><th>Correlation with Target</th></tr>';
+                data.top_correlations.forEach(item => {
+                    const absCorr = Math.abs(item.correlation);
+                    let color = '';
+                    if (absCorr > 0.7) color = 'color: #e74c3c; font-weight: bold;';
+                    else if (absCorr > 0.5) color = 'color: #e67e22;';
+                    else if (absCorr > 0.3) color = 'color: #f1c40f;';
+                    else color = 'color: #7f8c8d;';
+                    
+                    html += `<tr>
+                        <td>${item.feature}</td>
+                        <td style="${color}">${item.correlation.toFixed(3)}</td>
+                    </tr>`;
+                });
+                html += '</table>';
+                topCorrDiv.innerHTML = html;
+            });
+    }
+});
+</script>
+{% endblock %}

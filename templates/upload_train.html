@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Training Data{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        Upload Training Data
+    </div>
+    <div class="card-body">
+        <div class="upload-instructions">
+            <h3>How to prepare your data:</h3>
+            <ul style="margin-left: 20px; margin-bottom: 20px;">
+                <li>Data should be in CSV format</li>
+                <li>Include all relevant customer features</li>
+                <li>Ensure the target variable (churn) is included</li>
+                <li>Check for and handle missing values before uploading</li>
+            </ul>
+        </div>
+
+        <div class="upload-form">
+            <form action="{{ url_for('upload_train') }}" method="POST" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="file">Select CSV File:</label>
+                    <input type="file" class="form-control" id="file" name="file" accept=".csv" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="target">Target Column (default: 'churned'):</label>
+                    <input type="text" class="form-control" id="target" name="target" value="churned">
+                </div>
+                
+                <div class="form-group">
+                    <label for="id_col">ID Column (optional):</label>
+                    <input type="text" class="form-control" id="id_col" name="id_col" placeholder="customerID">
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Upload and Process</button>
+            </form>
+        </div>
+
+        {% if data_preview %}
+        <div class="data-preview" style="margin-top: 30px;">
+            <h3>Data Preview</h3>
+            <div style="overflow-x: auto; max-height: 400px; margin-top: 15px;">
+                {{ data_preview|safe }}
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <h4>Dataset Information:</h4>
+                <ul>
+                    <li><strong>Number of Rows:</strong> {{ num_rows }}</li>
+                    <li><strong>Number of Columns:</strong> {{ num_cols }}</li>
+                    <li><strong>Missing Values:</strong> {{ missing_values }}%</li>
+                </ul>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <a href="{{ url_for('analyze') }}" class="btn btn-success">Proceed to Analysis</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card" style="margin-top: 20px;">
+    <div class="card-header">
+        Data Processing Notes
+    </div>
+    <div class="card-body">
+        <h4>How your data is processed:</h4>
+        <ul style="margin-left: 20px;">
+            <li>• Categorical variables are automatically encoded</li>
+            <li>• Missing values are handled based on column type</li>
+            <li>• Numeric features are scaled when necessary</li>
+            <li>• The target variable is automatically detected or specified</li>
+        </ul>
+        
+        <div style="margin-top: 20px;">
+            <h4>Tips for better results:</h4>
+            <ul style="margin-left: 20px;">
+                <li>• Ensure your target variable is binary (0/1 or Yes/No)</li>
+                <li>• Remove any sensitive or irrelevant columns</li>
+                <li>• Consider feature engineering before uploading</li>
+                <li>• Balance your dataset if churn classes are imbalanced</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

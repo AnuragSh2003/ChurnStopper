@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        Welcome to Churn Prediction System
+    </div>
+    <div class="card-body">
+        <h2>Customer Churn Analysis and Prediction</h2>
+        <p>This application helps you analyze customer data and predict churn using machine learning.</p>
+        
+        <div class="features" style="margin: 30px 0;">
+            <h3>Key Features:</h3>
+            <ul style="margin-left: 20px; line-height: 2;">
+                <li>Upload and manage customer data</li>
+                <li>Explore data with interactive visualizations</li>
+                <li>Analyze key metrics and statistics</li>
+                <li>Train machine learning models</li>
+                <li>Make predictions on new data</li>
+                <li>Download results and reports</li>
+            </ul>
+        </div>
+
+        <div class="getting-started" style="margin-top: 30px;">
+            <h3>Getting Started:</h3>
+            <ol style="margin-left: 20px; line-height: 2;">
+                <li>Upload your training dataset using the "Upload Training Data" tab</li>
+                <li>Explore and analyze the data in the "Analyze Data" section</li>
+                <li>Upload test data and make predictions in the "Make Predictions" tab</li>
+            </ol>
+        </div>
+
+        <div class="upload-sample" style="margin-top: 30px; text-align: center;">
+            <p>Don't have a dataset? Download our sample dataset to get started:</p>
+            <a href="{{ url_for('download_sample') }}" class="btn btn-primary">Download Sample Dataset</a>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        About This Application
+    </div>
+    <div class="card-body">
+        <p>This churn prediction system is designed to help businesses identify customers who are likely to churn, 
+        allowing for proactive customer retention strategies.</p>
+        <p>The system uses advanced machine learning algorithms to analyze customer behavior and predict churn probability.</p>
+        
+        <div style="margin-top: 20px;">
+            <h4>Technologies Used:</h4>
+            <ul style="columns: 2; list-style-type: none; padding: 0;">
+                <li>• Python & Flask (Backend)</li>
+                <li>• HTML, CSS, JavaScript (Frontend)</li>
+                <li>• Scikit-learn (Machine Learning)</li>
+                <li>• Pandas & NumPy (Data Processing)</li>
+                <li>• Plotly (Visualizations)</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

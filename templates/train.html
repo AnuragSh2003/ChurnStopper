@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+
+{% block title %}Train Model{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        Train Churn Prediction Model
+    </div>
+    <div class="card-body">
+        <div class="training-options">
+            <h3>Model Training Options</h3>
+            <p>Select a machine learning algorithm to train your churn prediction model.</p>
+            
+            <form id="train-form" action="{{ url_for('train_model') }}" method="POST">
+                <div class="form-group" style="margin: 20px 0;">
+                    <label for="model-type">Select Model Type:</label>
+                    <select class="form-control" id="model-type" name="model_type" style="width: 300px;">
+                        <option value="random_forest">Random Forest (Recommended)</option>
+                        <option value="gradient_boosting">Gradient Boosting</option>
+                        <option value="logistic_regression">Logistic Regression</option>
+                    </select>
+                </div>
+                
+                <div id="model-description" class="alert alert-info" style="margin: 20px 0; padding: 15px; border-radius: 5px;">
+                    <h5>Random Forest</h5>
+                    <p>An ensemble learning method that constructs multiple decision trees and outputs the class that is the mode of the classes of the individual trees. Works well with default parameters and handles a wide range of data types.</p>
+                    <p><strong>Best for:</strong> Most datasets, especially with non-linear relationships</p>
+                </div>
+                
+                <div class="form-group form-check" style="margin: 20px 0;">
+                    <input type="checkbox" class="form-check-input" id="feature-selection" name="feature_selection" checked>
+                    <label class="form-check-label" for="feature-selection">Enable automatic feature selection</label>
+                </div>
+                
+                <div class="form-group" style="margin: 20px 0;">
+                    <label for="test-size">Test Set Size: <span id="test-size-value">20</span>%</label>
+                    <input type="range" class="form-control-range" id="test-size" name="test_size" min="10" max="50" value="20" style="width: 100%; max-width: 400px;">
+                </div>
+                
+                <div class="form-group form-check" style="margin: 20px 0;">
+                    <input type="checkbox" class="form-check-input" id="cross-validation" name="cross_validation" checked>
+                    <label class="form-check-label" for="cross-validation">Use 5-fold cross-validation</label>
+                </div>
+                
+                <button type="submit" id="train-btn" class="btn btn-primary">
+                    <i class="fas fa-cogs"></i> Train Model
+                </button>
+            </form>
+        </div>
+        
+        {% if training_results %}
+        <div class="training-results" style="margin-top: 30px;">
+            <h3>Training Results</h3>
+            
+            <div class="row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 20px 0;">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Accuracy</h5>
+                        <h2 class="display-4" style="color: #3498db;">{{ "%.2f"|format(training_results.accuracy * 100) }}%</h2>
+                        <p class="text-muted">Correct predictions</p>
+                    </div>
+                </div>
+                
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Precision</h5>
+                        <h2 class="display-4" style="color: #2ecc71;">{{ "%.2f"|format(training_results.precision * 100) }}%</h2>
+                        <p class="text-muted">True positives / (True positives + False positives)</p>
+                    </div>
+                </div>
+                
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Recall</h5>
+                        <h2 class="display-4" style="color: #e74c3c;">{{ "%.2f"|format(training_results.recall * 100) }}%</h2>
+                        <p class="text-muted">True positives / (True positives + False negatives)</p>
+                    </div>
+                </div>
+                
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">F1 Score</h5>
+                        <h2 class="display-4" style="color: #9b59b6;">{{ "%.2f"|format(training_results.f1 * 100) }}%</h2>
+                        <p class="text-muted">Harmonic mean of precision and recall</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row" style="margin-top: 30px;">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Confusion Matrix</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="confusion-matrix" style="width: 100%; height: 300px;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>ROC Curve</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="roc-curve" style="width: 100%; height: 300px;"></div>
+                            <p class="text-center mt-2">AUC: {{ "%.3f"|format(training_results.auc) }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card" style="margin-top: 30px;">
+                <div class="card-header">
+                    <h5>Feature Importance</h5>
+                </div>
+                <div class="card-body">
+                    <div id="feature-importance" style="width: 100%; height: 400px;"></div>
+                </div>
+            </div>
+            
+            <div class="action-buttons" style="margin-top: 30px; text-align: center;">
+                <a href="{{ url_for('predict') }}" class="btn btn-primary">Make Predictions</a>
+                <button id="download-model" class="btn btn-success">
+                    <i class="fas fa-download"></i> Download Model
+                </button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card" style="margin-top: 20px;">
+    <div class="card-header">
+        Model Training Notes
+    </div>
+    <div class="card-body">
+        <h5>About the Models</h5>
+        <div class="row" style="margin-top: 15px;">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h6>Random Forest</h6>
+                        <p class="small">An ensemble method that builds multiple decision trees and merges them together for more accurate and stable predictions. Works well with default parameters and handles a wide range of data types.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h6>Gradient Boosting</h6>
+                        <p class="small">Builds an additive model in a forward stage-wise fashion; it allows for the optimization of arbitrary differentiable loss functions. Often provides better accuracy but may overfit with small datasets.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h6>Logistic Regression</h6>
+                        <p class="small">A linear model for classification rather than regression. Fast to train and works well when the relationship between features and target is approximately linear.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <h5>Tips for Better Results</h5>
+            <ul>
+                <li>Ensure your dataset is properly preprocessed before training</li>
+                <li>Try different test set sizes to evaluate model stability</li>
+                <li>Use feature selection to reduce overfitting with smaller datasets</li>
+                <li>Consider class imbalance techniques if your churn rate is very low or high</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Update test size value display
+    const testSizeSlider = document.getElementById('test-size');
+    const testSizeValue = document.getElementById('test-size-value');
+    
+    if (testSizeSlider && testSizeValue) {
+        testSizeSlider.addEventListener('input', function() {
+            testSizeValue.textContent = this.value;
+        });
+    }
+    
+    // Update model description based on selection
+    const modelTypeSelect = document.getElementById('model-type');
+    const modelDescription = document.getElementById('model-description');
+    
+    if (modelTypeSelect && modelDescription) {
+        modelTypeSelect.addEventListener('change', function() {
+            const modelType = this.value;
+            let description = '';
+            
+            switch(modelType) {
+                case 'random_forest':
+                    description = `
+                        <h5>Random Forest</h5>
+                        <p>An ensemble learning method that constructs multiple decision trees and outputs the class that is the mode of the classes of the individual trees. Works well with default parameters and handles a wide range of data types.</p>
+                        <p><strong>Best for:</strong> Most datasets, especially with non-linear relationships</p>
+                    `;
+                    break;
+                    
+                case 'gradient_boosting':
+                    description = `
+                        <h5>Gradient Boosting</h5>
+                        <p>Builds an additive model in a forward stage-wise fashion; it allows for the optimization of arbitrary differentiable loss functions. Often provides better accuracy but may overfit with small datasets.</p>
+                        <p><strong>Best for:</strong> Datasets where you need high accuracy and have enough data</p>
+                    `;
+                    break;
+                    
+                case 'logistic_regression':
+                    description = `
+                        <h5>Logistic Regression</h5>
+                        <p>A linear model for classification rather than regression. Fast to train and works well when the relationship between features and target is approximately linear.</p>
+                        <p><strong>Best for:</strong> Linearly separable data or when you need model interpretability</p>
+                    `;
+                    break;
+            }
+            
+            modelDescription.innerHTML = description;
+        });
+    }
+    
+    // Initialize charts if training results exist
+    {% if training_results %}
+    // Confusion Matrix
+    const confusionMatrix = {{ training_results.confusion_matrix|tojson|safe }};
+    const confusionData = [{
+        z: confusionMatrix,
+        type: 'heatmap',
+        x: ['Not Churn', 'Churn'],
+        y: ['Not Churn', 'Churn'],
+        hoverongaps: false,
+        colorscale: 'Blues'
+    }];
+    
+    const confusionLayout = {
+        title: 'Confusion Matrix',
+        xaxis: { title: 'Predicted' },
+        yaxis: { title: 'Actual' },
+        annotations: []
+    };
+    
+    // Add text annotations to the confusion matrix
+    for (let i = 0; i < confusionMatrix.length; i++) {
+        for (let j = 0; j < confusionMatrix[i].length; j++) {
+            confusionLayout.annotations.push({
+                x: ['Not Churn', 'Churn'][j],
+                y: ['Not Churn', 'Churn'][i],
+                text: confusionMatrix[i][j].toString(),
+                font: {
+                    color: i === j ? 'white' : 'black',
+                    size: 16
+                },
+                showarrow: false
+            });
+        }
+    }
+    
+    Plotly.newPlot('confusion-matrix', confusionData, confusionLayout);
+    
+    // ROC Curve
+    const fpr = {{ training_results.fpr|tojson|safe }};
+    const tpr = {{ training_results.tpr|tojson|safe }};
+    
+    const rocData = [
+        {
+            x: fpr,
+            y: tpr,
+            type: 'scatter',
+            mode: 'lines',
+            line: { color: '#3498db', width: 2 },
+            name: 'ROC Curve'
+        },
+        {
+            x: [0, 1],
+            y: [0, 1],
+            type: 'scatter',
+            mode: 'lines',
+            line: { color: 'gray', dash: 'dash' },
+            name: 'Random'
+        }
+    ];
+    
+    const rocLayout = {
+        title: 'Receiver Operating Characteristic (ROC) Curve',
+        xaxis: { title: 'False Positive Rate' },
+        yaxis: { title: 'True Positive Rate' },
+        showlegend: true,
+        legend: { x: 0.6, y: 0.1 }
+    };
+    
+    Plotly.newPlot('roc-curve', rocData, rocLayout);
+    
+    // Feature Importance
+    const featureImportance = {{ training_results.feature_importance|tojson|safe }};
+    const featureNames = featureImportance.map(item => item.feature);
+    const importanceValues = featureImportance.map(item => item.importance);
+    
+    const importanceData = [{
+        x: importanceValues,
+        y: featureNames,
+        type: 'bar',
+        orientation: 'h',
+        marker: {
+            color: 'rgba(55, 128, 191, 0.7)',
+            line: {
+                color: 'rgba(55, 128, 191, 1.0)',
+                width: 1
+            }
+        }
+    }];
+    
+    const importanceLayout = {
+        title: 'Top 20 Most Important Features',
+        xaxis: { title: 'Importance' },
+        margin: { l: 200, r: 20, t: 40, b: 40 },
+        height: Math.max(400, featureNames.length * 20)
+    };
+    
+    Plotly.newPlot('feature-importance', importanceData, importanceLayout);
+    
+    // Download model button
+    document.getElementById('download-model')?.addEventListener('click', function() {
+        // This would typically trigger a download from the server
+        window.location.href = "{{ url_for('download_model') }}";
+    });
+    {% endif %}
+});
+</script>
+{% endblock %}

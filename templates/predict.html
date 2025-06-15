@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+
+{% block title %}Make Predictions{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        Make Predictions
+    </div>
+    <div class="card-body">
+        <div class="upload-section" style="margin-bottom: 30px;">
+            <h3>Upload Test Data</h3>
+            <p>Upload a CSV file containing customer data to make churn predictions.</p>
+            
+            <form id="predict-form" action="{{ url_for('predict') }}" method="POST" enctype="multipart/form-data" style="margin-top: 20px;">
+                <div class="form-group">
+                    <div class="upload-area" id="upload-area" style="border: 2px dashed #ccc; padding: 30px; text-align: center; cursor: pointer; border-radius: 5px; margin: 15px 0;">
+                        <div id="upload-text">
+                            <i class="fas fa-cloud-upload-alt" style="font-size: 48px; color: #7f8c8d; margin-bottom: 10px;"></i>
+                            <p>Drag & drop your CSV file here or click to browse</p>
+                            <p class="text-muted">(Only .csv files are accepted)</p>
+                        </div>
+                        <input type="file" id="file-input" name="file" accept=".csv" style="display: none;">
+                    </div>
+                    <div id="file-info" style="margin-top: 10px; display: none;">
+                        <p>Selected file: <span id="file-name"></span> <button type="button" id="change-file" class="btn btn-sm btn-outline-secondary" style="margin-left: 10px;">Change</button></p>
+                    </div>
+                </div>
+                
+                <div class="form-group" style="margin-top: 20px;">
+                    <label for="model-select">Select Model:</label>
+                    <select id="model-select" name="model" class="form-control" style="width: 300px;">
+                        <option value="random_forest">Random Forest (Recommended)</option>
+                        <option value="logistic_regression">Logistic Regression</option>
+                        <option value="gradient_boosting">Gradient Boosting</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" style="margin: 20px 0;">
+                    <label for="threshold">Prediction Threshold: <span id="threshold-value">0.5</span></label>
+                    <input type="range" class="form-control-range" id="threshold" name="threshold" min="0.1" max="0.9" step="0.05" value="0.5" style="width: 100%; max-width: 400px;">
+                    <small class="form-text text-muted">Adjust the threshold for churn prediction (higher = more conservative predictions)</small>
+                </div>
+                
+                <div class="form-group form-check" style="margin: 20px 0;">
+                    <input type="checkbox" class="form-check-input" id="download-results" name="download_results" checked>
+                    <label class="form-check-label" for="download-results">Download predictions as CSV</label>
+                </div>
+                
+                <button type="submit" id="predict-btn" class="btn btn-primary" disabled>
+                    <span id="predict-btn-text">Make Predictions</span>
+                    <span id="predict-spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none; margin-left: 5px;"></span>
+                </button>
+            </form>
+        </div>
+        
+        {% if predictions %}
+        <div class="results-section" style="margin-top: 40px;">
+            <h3>Prediction Results</h3>
+            
+            <div class="row" style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px; margin: 20px 0;">
+                <div class="card" style="padding: 15px;">
+                    <h4>Prediction Summary</h4>
+                    <div style="text-align: center; margin: 20px 0;">
+                        <div style="font-size: 36px; font-weight: bold; color: #e74c3c;">{{ predictions.churn_count }}</div>
+                        <div>Customers predicted to churn</div>
+                    </div>
+                    <div style="text-align: center; margin: 20px 0;">
+                        <div style="font-size: 36px; font-weight: bold; color: #2ecc71;">{{ predictions.non_churn_count }}</div>
+                        <div>Customers predicted to stay</div>
+                    </div>
+                    <div style="margin-top: 20px; text-align: center;">
+                        <div style="font-size: 18px; font-weight: bold;">{{ predictions.churn_rate }}%</div>
+                        <div>Churn Rate</div>
+                    </div>
+                    <div style="margin-top: 20px;">
+                        <a href="{{ url_for('download_predictions') }}" class="btn btn-success" style="width: 100%;">
+                            <i class="fas fa-download"></i> Download Full Results
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="card" style="padding: 15px;">
+                    <h4>Churn Probability Distribution</h4>
+                    <div id="probability-chart" style="height: 300px;"></div>
+                    <p style="text-align: center; margin-top: 10px; font-size: 0.9em; color: #7f8c8d;">
+                        Distribution of churn probabilities across all customers
+                    </p>
+                </div>
+            </div>
+            
+            <div class="card" style="margin-top: 20px;">
+                <div class="card-header">
+                    <h4 style="margin: 0;">Top 10 Customers at Risk</h4>
+                </div>
+                <div class="card-body" style="overflow-x: auto;">
+                    {{ predictions.top_risky_customers|safe }}
+                </div>
+            </div>
+            
+            <div class="card" style="margin-top: 20px;">
+                <div class="card-header">
+                    <h4 style="margin: 0;">Feature Importance</h4>
+                </div>
+                <div class="card-body">
+                    <div id="feature-importance-chart" style="height: 300px;"></div>
+                </div>
+            </div>
+            
+            <div class="action-buttons" style="margin-top: 30px; text-align: center;">
+                <a href="{{ url_for('analyze') }}" class="btn btn-outline-primary">Back to Analysis</a>
+                <a href="{{ url_for('index') }}" class="btn btn-primary">Return to Dashboard</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // File upload handling
+    const uploadArea = document.getElementById('upload-area');
+    const fileInput = document.getElementById('file-input');
+    const fileInfo = document.getElementById('file-info');
+    const fileName = document.getElementById('file-name');
+    const changeFileBtn = document.getElementById('change-file');
+    const predictBtn = document.getElementById('predict-btn');
+    
+    // Handle drag and drop
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, highlight, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, unhighlight, false);
+    });
+    
+    function highlight() {
+        uploadArea.style.borderColor = '#3498db';
+        uploadArea.style.backgroundColor = '#f8f9fa';
+    }
+    
+    function unhighlight() {
+        uploadArea.style.borderColor = '#ced4da';
+        uploadArea.style.backgroundColor = '';
+    }
+    
+    // Handle dropped files
+    uploadArea.addEventListener('drop', handleDrop, false);
+    
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        handleFiles(files);
+    }
+    
+    // Handle file selection via click
+    uploadArea.addEventListener('click', () => {
+        fileInput.click();
+    });
+    
+    fileInput.addEventListener('change', function() {
+        handleFiles(this.files);
+    });
+    
+    changeFileBtn?.addEventListener('click', function() {
+        fileInput.value = '';
+        fileInfo.style.display = 'none';
+        uploadArea.style.display = 'block';
+        predictBtn.disabled = true;
+    });
+    
+    function handleFiles(files) {
+        if (files.length > 0) {
+            const file = files[0];
+            if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
+                fileName.textContent = file.name;
+                fileInfo.style.display = 'block';
+                uploadArea.style.display = 'none';
+                predictBtn.disabled = false;
+            } else {
+                alert('Please upload a valid CSV file.');
+            }
+        }
+    }
+    
+    // Update threshold value display
+    const thresholdSlider = document.getElementById('threshold');
+    const thresholdValue = document.getElementById('threshold-value');
+    
+    if (thresholdSlider && thresholdValue) {
+        thresholdSlider.addEventListener('input', function() {
+            thresholdValue.textContent = this.value;
+        });
+    }
+    
+    // Form submission
+    const predictForm = document.getElementById('predict-form');
+    if (predictForm) {
+        predictForm.addEventListener('submit', function() {
+            const predictBtnText = document.getElementById('predict-btn-text');
+            const predictSpinner = document.getElementById('predict-spinner');
+            
+            predictBtn.disabled = true;
+            predictBtnText.textContent = 'Processing...';
+            predictSpinner.style.display = 'inline-block';
+        });
+    }
+    
+    // Initialize charts if predictions exist
+    {% if predictions %}
+    // Probability distribution chart
+    const probData = [{
+        x: {{ predictions.probability_distribution|tojson|safe }},
+        type: 'histogram',
+        marker: {
+            color: '#3498db',
+            opacity: 0.7,
+            line: {
+                color: '#2980b9',
+                width: 1
+            }
+        }
+    }];
+    
+    const probLayout = {
+        title: 'Churn Probability Distribution',
+        xaxis: { title: 'Churn Probability' },
+        yaxis: { title: 'Number of Customers' },
+        margin: { t: 30, b: 40, l: 50, r: 10 },
+        showlegend: false
+    };
+    
+    Plotly.newPlot('probability-chart', probData, probLayout);
+    
+    // Feature importance chart
+    const featureImportance = {{ predictions.feature_importance|tojson|safe }};
+    const featureNames = featureImportance.map(item => item.feature);
+    const importanceValues = featureImportance.map(item => item.importance);
+    
+    const importanceData = [{
+        x: importanceValues,
+        y: featureNames,
+        type: 'bar',
+        orientation: 'h',
+        marker: {
+            color: '#e74c3c',
+            opacity: 0.7
+        }
+    }];
+    
+    const importanceLayout = {
+        title: 'Top 10 Most Important Features',
+        xaxis: { title: 'Importance' },
+        margin: { t: 30, b: 40, l: 200, r: 10 },
+        height: 400
+    };
+    
+    Plotly.newPlot('feature-importance-chart', importanceData, importanceLayout);
+    {% endif %}
+});
+</script>
+{% endblock %}
